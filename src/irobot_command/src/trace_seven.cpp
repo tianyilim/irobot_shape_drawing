@@ -30,11 +30,10 @@ public:
             this, "navigate_to_position"
         );
 
-        // Initialize the timer which will let us call the next first action
-        this->timer_ = rclcpp::create_timer(
-            this, this->get_clock(),
-            std::chrono::milliseconds(500),
-            std::bind(&TraceSevenClient::send_goal, this) );
+        this->start_sub_ = this->create_subscription<std_msgs::msg::Bool>(
+            "start_trace_seven", 10,
+            std::bind(&TraceSevenClient::send_goal, this, std::placeholders::_1)
+        );
 
         this->coord_idx_ = 0;   // Which coordinate in the "7" to move to
         this->goal_done_ = false;
@@ -47,10 +46,9 @@ public:
         return this->goal_done_;
     }
 
-    void send_goal()
+    void send_goal(const std_msgs::msg::Bool & _)
     {
         using namespace std::placeholders;  // for defining callbacks later
-        this->timer_->cancel();             // Cancel timer so action only called once
 
         // Wait for action client to start up
         if (!this->client_ptr_)
@@ -110,7 +108,7 @@ public:
 
 private:
     rclcpp_action::Client<NavToPos>::SharedPtr client_ptr_;
-    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr start_sub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr viz_flag_pub_;
 
     bool goal_done_;
@@ -159,7 +157,8 @@ private:
             if (this->coord_idx_ == this->x_coords.size()) {
                 this->goal_done_ = true;
             } else {
-                this->send_goal();
+                std_msgs::msg::Bool msg;
+                this->send_goal(msg);
             }
             break;
         case rclcpp_action::ResultCode::ABORTED:

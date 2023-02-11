@@ -6,6 +6,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "irobot_create_msgs/action/undock.hpp"
+#include "std_msgs/msg/bool.hpp"
 
 namespace irobot_command{
 
@@ -28,6 +29,8 @@ public:
             this, this->get_clock(),
             std::chrono::milliseconds(500),
             std::bind(&iRobotUndockClient::send_goal, this) );
+
+        this->start_pub_ = this->create_publisher<std_msgs::msg::Bool>("start_trace_seven", 10);
     }
 
     bool is_goal_done() const {return this->goal_done_;}
@@ -72,6 +75,8 @@ public:
 private:
     rclcpp_action::Client<Undock>::SharedPtr client_ptr_;
     rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr start_pub_;
+
     bool goal_done_;
 
     void goal_response_callback(GoalHandleUndock::SharedPtr goal_handle)
@@ -83,23 +88,14 @@ private:
         }
     }
 
-    // There is no feedback for this action.
-    // void feedback_callback(
-    //     GoalHandleUndock::SharedPtr,
-    //     const std::shared_ptr<const Undock::Feedback> feedback)
-    // {
-    //     // RCLCPP_INFO(
-    //     //     this->get_logger(),
-    //     //     "Next number in sequence received: %" PRId32,
-    //     //     feedback->sequence.back()
-    //     // );
-    // }
-
     void result_callback(const GoalHandleUndock::WrappedResult & result)
     {
         this->goal_done_ = true;
         switch (result.code) {
         case rclcpp_action::ResultCode::SUCCEEDED:
+            // Let the other server know it's time to start
+            std:std_msgs::msg::Bool msg;    msg.data = true;
+            start_pub_->publish(msg);
             break;
         case rclcpp_action::ResultCode::ABORTED:
             RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
