@@ -93,19 +93,28 @@ private:
         this->goal_done_ = true;
         switch (result.code) {
         case rclcpp_action::ResultCode::SUCCEEDED:
+        {
             // Let the other server know it's time to start
-            std:std_msgs::msg::Bool msg;    msg.data = true;
-            start_pub_->publish(msg);
+            std_msgs::msg::Bool start_msg;
+            start_msg.data = true;
+            start_pub_->publish(start_msg);
             break;
+        }
         case rclcpp_action::ResultCode::ABORTED:
+        {
             RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
             return;
+        }
         case rclcpp_action::ResultCode::CANCELED:
+        {
             RCLCPP_ERROR(this->get_logger(), "Goal was canceled");
             return;
+        }
         default:
+        {
             RCLCPP_ERROR(this->get_logger(), "Unknown result code");
             return;
+        }
         }
 
         RCLCPP_INFO(this->get_logger(), "Result received: is_docked=%s", result.result->is_docked ? "true" : "false");
