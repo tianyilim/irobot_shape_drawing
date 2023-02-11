@@ -85,7 +85,9 @@ public:
         goal_msg.goal_pose.pose.position.y = this->y_coords[this->coord_idx_];
         // Init quaternion
         tf2::Quaternion q;
-        q.setRPY(0.0, 0.0, this->t_coords[this->coord_idx_]);
+        q.setRPY(0.0, 0.0, 
+            this->t_coords[this->coord_idx_]*M_PI/180.0
+        );
         goal_msg.goal_pose.pose.orientation.w = q.getW();
         goal_msg.goal_pose.pose.orientation.x = q.getX();
         goal_msg.goal_pose.pose.orientation.y = q.getY();
@@ -117,7 +119,7 @@ private:
     const size_t END_VIZ_IDX = 3;       // Waypoint index to end visualization
     std::vector<float> x_coords{-1.35, -1.35, -0.35, -1.15};
     std::vector<float> y_coords{-1.0, -0.2, -0.7, 1.0};
-    std::vector<float> t_coords{90.0, -22.565, -115.201, -180.0};
+    std::vector<float> t_coords{90.0, -22.565, 115.201, -180.0};
     // Hard-coded waypoints to get the robot to go
 
     void goal_response_callback(GoalHandleNavToPos::SharedPtr goal_handle)
