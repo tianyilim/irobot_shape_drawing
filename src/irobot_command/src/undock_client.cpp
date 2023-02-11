@@ -27,7 +27,7 @@ public:
 
         this->timer_ = rclcpp::create_timer(
             this, this->get_clock(),
-            std::chrono::milliseconds(500),
+            std::chrono::milliseconds(2000),    // Don't call too often.
             std::bind(&iRobotUndockClient::send_goal, this) );
 
         this->start_pub_ = this->create_publisher<std_msgs::msg::Bool>("start_trace_seven", 10);
@@ -38,13 +38,13 @@ public:
     void send_goal()
     {
         using namespace std::placeholders;  // for defining callbacks later
-        this->timer_->cancel();             // Cancel timer so action only called once
         this->goal_done_ = false;
 
         // Wait for action client to start up
         if (!this->client_ptr_)
         {
-            RCLCPP_ERROR(this->get_logger(), "Action client not initialized");
+            RCLCPP_ERROR(this->get_logger(), "Action client not initialized, trying again");
+            return;
         }
 
         // Error! Action server might have crashed.
@@ -85,6 +85,7 @@ private:
             RCLCPP_ERROR(this->get_logger(), "Goal was rejected by server");
         } else {
             RCLCPP_INFO(this->get_logger(), "Goal accepted by server, waiting for result");
+            this->timer_->cancel();             // Cancel timer so action only called once
         }
     }
 
