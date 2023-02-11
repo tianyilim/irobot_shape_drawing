@@ -28,10 +28,9 @@ class PathSubscriber(Node):
             'traced_letters',
             10
         )
-
         self.marker_id = 0
         self.odom_cnt = 0
-        self.MARKER_SPARSITY = 20   # how many 'odom' msgs apart to publish new breadcrumbs
+        self.MARKER_SPARSITY = 5   # how many 'odom' msgs apart to publish new breadcrumbs
 
     # Leaves breadcrumbs if required
     def listener_callback(self, msg:Odometry):
@@ -53,9 +52,9 @@ class PathSubscriber(Node):
                 marker.pose.orientation.y = msg.pose.pose.orientation.y
                 marker.pose.orientation.z = msg.pose.pose.orientation.z
                 marker.pose.orientation.w = msg.pose.pose.orientation.w
-                marker.scale.x = 0.1
-                marker.scale.y = 0.1
-                marker.scale.z = 0.1
+                marker.scale.x = 0.02
+                marker.scale.y = 0.02
+                marker.scale.z = 0.02
                 # We get fully opaque green shapes.
                 marker.color.a = 1.0
                 marker.color.r = 0.0
