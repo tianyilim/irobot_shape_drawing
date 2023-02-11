@@ -38,6 +38,8 @@ public:
 
         this->coord_idx_ = 0;   // Which coordinate in the "7" to move to
         this->goal_done_ = false;
+
+        this->viz_flag_pub_ = this->create_publisher<std_msgs::msg::Bool>("viz_on", 10);
     }
 
     bool is_goal_done()
@@ -64,6 +66,18 @@ public:
             return;
         }
 
+        // Start/stop leaving breadcrumbs
+        std_msgs::msg::Bool msg;
+        if (this->coord_idx_ == this->START_VIZ_IDX){
+            RCLCPP_INFO(this->get_logger(), "Set viz ON");
+            msg.data = true;
+            this->viz_flag_pub_->publish(msg);
+        }
+        if (this->coord_idx_ == this->END_VIZ_IDX){
+            RCLCPP_INFO(this->get_logger(), "Set viz OFF");
+            msg.data = false;
+            this->viz_flag_pub_->publish(msg);
+        }
 
         auto goal_msg = NavToPos::Goal();
         // goal_msg.goal_pose.header.stamp;
@@ -97,13 +111,16 @@ public:
 private:
     rclcpp_action::Client<NavToPos>::SharedPtr client_ptr_;
     rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr viz_flag_pub_;
 
     bool goal_done_;
     size_t coord_idx_;
+    const size_t START_VIZ_IDX = 1;     // Waypoint index to start visualization
+    const size_t END_VIZ_IDX = 3;       // Waypoint index to end visualization
     std::vector<float> x_coords{-1.35, -1.35, -0.35, -1.15};
     std::vector<float> y_coords{-1.0, -0.2, -0.7, 1.0};
-    std::vector<float> t_coords{90.0, -22.565, 115.201, -180.0};
-    // Hard-coded coordinates to get the robot to
+    std::vector<float> t_coords{90.0, -22.565, -115.201, -180.0};
+    // Hard-coded waypoints to get the robot to go
 
     void goal_response_callback(GoalHandleNavToPos::SharedPtr goal_handle)
     {
@@ -118,18 +135,18 @@ private:
         GoalHandleNavToPos::SharedPtr,
         const std::shared_ptr<const NavToPos::Feedback> feedback)
     {
-        std::string stat;
+        std::ostringstream status;
         if (feedback->navigate_state == 2) {
-            stat = "%0.2f m", feedback->remaining_travel_distance;
+            status << feedback->remaining_travel_distance << "m";
         } else {
-            stat = "%0.2f rad", feedback->remaining_angle_travel;
+            status << feedback->remaining_angle_travel << "rad";
         }
 
         RCLCPP_INFO(
             this->get_logger(),
             "Nav state: %d, %s",
             feedback->navigate_state,
-            stat
+            status.str().c_str()
         );
     }
 
