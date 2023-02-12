@@ -17,6 +17,7 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 
 # Add executables here
 add_executable(undock_client src/undock_client.cpp)
@@ -26,7 +27,7 @@ add_executable(trace_seven src/trace_seven.cpp)
 ament_target_dependencies(trace_seven rclcpp rclcpp_action irobot_create_msgs std_msgs geometry_msgs tf2 tf2_ros)
 
 add_executable(trace_s src/trace_s.cpp)
-ament_target_dependencies(trace_s rclcpp rclcpp_action irobot_create_msgs std_msgs geometry_msgs tf2 tf2_ros)
+ament_target_dependencies(trace_s rclcpp rclcpp_action irobot_create_msgs std_msgs nav_msgs geometry_msgs tf2 tf2_ros)
 
 # And here
 install(TARGETS
