@@ -51,10 +51,9 @@ def generate_launch_description():
             parameters=[
                 {
                     "use_sim_time": True,
-                    "WAYPOINT_TOL": 0.02,
-                    "V_K": 0.8,
+                    "WAYPOINT_TOL": 0.04,
+                    "V_K": 0.5,
                     "V_MAX": 0.5,
-                    "W_K": 0.5,
                     "W_MAX": pi/2,
                 }
             ]
