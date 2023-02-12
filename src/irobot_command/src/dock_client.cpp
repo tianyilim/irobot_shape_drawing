@@ -127,7 +127,7 @@ private:
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr start_sub_;
 
     bool goal_done_;
-    const float gx = -0.4;
+    const float gx = -0.05;
     const float gy = 0.0;
     const float gtheta = 0.0;
 
