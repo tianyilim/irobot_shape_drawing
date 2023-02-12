@@ -37,7 +37,7 @@ After sourcing the setup (step 6 above), we can run the shape drawing task by ru
 Here is a screenshot of the drawn letters:
 ![ss](media/completed_image.png)
 
-On YouTube [link] is an annotated video of the robot moving around.
+[Here on YouTube](https://youtu.be/lGK0zXpr-_0) is an annotated (unlisted) video of the robot moving around.
 
 ## Code Structure
 The code is structured into two folders, `irobot_command` and `path_viz`. `irobot_command` manages the control of the robot to fulfil tasks, and is written in C++. `path_viz` allows the path of the robot to visualized in RViz and is written in Python.
@@ -57,3 +57,8 @@ For Part 3, the control law for following the S-shaped path relates the requeste
 The requested linear velocity varies linearly with the absolute heading error, dropping to 0 when the error is too large (the robot should then turn on the spot).
 
 To obtain smoother performance for the angular velocitiy, the sin function is used when the heading error is not too large. If the error is too large, then it is clipped to the maximum (or minimum) angular velocity.
+
+## Limitations
+When calling the `DockServo` action, the robot does not seem to visually dock with the docking station in RViz. This is probably due to the (simulated) drift of the Odometry frame over time (as it uses just wheel encoders and IMU, no other extereoceptive sensors). In RViz, the base frame is the Odom frame, therefore the docking station and the robot do not line up.
+
+However, the DockServo action aligns the robot using the IR beacons on the docking station, so it would correspond to docking the robot accurately in real life.
