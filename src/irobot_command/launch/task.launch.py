@@ -31,4 +31,10 @@ def generate_launch_description():
             executable='path_viz',
             name='path_viz'
         ),
+        Node(
+            package='irobot_command',
+            namespace='',
+            executable='trace_s',
+            name='trace_s'
+        ),
     ])

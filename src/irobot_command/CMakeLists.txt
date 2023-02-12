@@ -25,10 +25,14 @@ ament_target_dependencies(undock_client rclcpp rclcpp_action irobot_create_msgs)
 add_executable(trace_seven src/trace_seven.cpp)
 ament_target_dependencies(trace_seven rclcpp rclcpp_action irobot_create_msgs std_msgs geometry_msgs tf2 tf2_ros)
 
+add_executable(trace_s src/trace_s.cpp)
+ament_target_dependencies(trace_s rclcpp rclcpp_action irobot_create_msgs std_msgs geometry_msgs tf2 tf2_ros)
+
 # And here
 install(TARGETS
   undock_client
   trace_seven
+  trace_s
   DESTINATION lib/${PROJECT_NAME}
 )
 

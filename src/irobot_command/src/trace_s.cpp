@@ -15,13 +15,13 @@
 
 namespace irobot_command{
 
-class TraceSevenClient : public rclcpp::Node
+class TraceSClient : public rclcpp::Node
 {
 public:
     using NavToPos = irobot_create_msgs::action::NavigateToPosition;
     using GoalHandleNavToPos = rclcpp_action::ClientGoalHandle<NavToPos>;
 
-    explicit TraceSevenClient(
+    explicit TraceSClient(
         const rclcpp::NodeOptions &node_options=rclcpp::NodeOptions()
     ) : Node("trace_seven_client", node_options)
     {
@@ -32,7 +32,7 @@ public:
 
         this->start_sub_ = this->create_subscription<std_msgs::msg::Bool>(
             "start_trace_seven", 10,
-            std::bind(&TraceSevenClient::send_goal, this, std::placeholders::_1)
+            std::bind(&TraceSClient::send_goal, this, std::placeholders::_1)
         );
 
         this->coord_idx_ = 0;   // Which coordinate in the "7" to move to
@@ -99,11 +99,11 @@ public:
 
         auto send_goal_options = rclcpp_action::Client<NavToPos>::SendGoalOptions();
         send_goal_options.goal_response_callback =
-            std::bind(&TraceSevenClient::goal_response_callback, this, _1);   // the placeholders refer to the function arguments in the callback
+            std::bind(&TraceSClient::goal_response_callback, this, _1);   // the placeholders refer to the function arguments in the callback
         send_goal_options.feedback_callback =
-            std::bind(&TraceSevenClient::feedback_callback, this, _1, _2);
+            std::bind(&TraceSClient::feedback_callback, this, _1, _2);
         send_goal_options.result_callback =
-            std::bind(&TraceSevenClient::result_callback, this, _1);
+            std::bind(&TraceSClient::result_callback, this, _1);
 
         // Send goal to the action server
         auto goal_handle_future = this->client_ptr_->async_send_goal(goal_msg, send_goal_options);
@@ -195,14 +195,14 @@ private:
             yaw);
     }
 
-};  // class TraceSevenClient
+};  // class TraceSClient
 
 }
 
 int main(int argc, char ** argv)
 {
     rclcpp::init(argc, argv);
-    auto action_client = std::make_shared<irobot_command::TraceSevenClient>();
+    auto action_client = std::make_shared<irobot_command::TraceSClient>();
 
     while(!action_client->is_goal_done()){
         rclcpp::spin_some(action_client);
