@@ -12,6 +12,7 @@ def generate_launch_description():
             PythonLaunchDescriptionSource(
                 os.path.join(get_package_share_directory('irobot_create_gazebo_bringup'), 'launch', 'create3_gazebo.launch.py')
             ),
+            launch_arguments={'use_gazebo_gui':'false'}.items()
         ),
         Node(
             package='irobot_command',
