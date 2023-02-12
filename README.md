@@ -58,7 +58,10 @@ The requested linear velocity varies linearly with the absolute heading error, d
 
 To obtain smoother performance for the angular velocitiy, the sin function is used when the heading error is not too large. If the error is too large, then it is clipped to the maximum (or minimum) angular velocity.
 
-## Limitations
+## Notes
 When calling the `DockServo` action, the robot does not seem to visually dock with the docking station in RViz. This is probably due to the (simulated) drift of the Odometry frame over time (as it uses just wheel encoders and IMU, no other extereoceptive sensors). In RViz, the base frame is the Odom frame, therefore the docking station and the robot do not line up.
 
-However, the DockServo action aligns the robot using the IR beacons on the docking station, so it would correspond to docking the robot accurately in real life.
+However, in Gazebo, the docking works as intended, as seen here.
+![docking](media/docking_detail.gif)
+
+The DockServo action aligns the robot using the IR beacons on the docking station, so it would correspond to docking the robot accurately in real life (as in Gazebo).
