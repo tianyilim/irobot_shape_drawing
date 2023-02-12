@@ -8,6 +8,13 @@
 #include "irobot_create_msgs/action/undock.hpp"
 #include "std_msgs/msg/bool.hpp"
 
+/*  UndockClient calls the Undock action in this C++ ROS node.
+    The ROS node shuts down after the action is completed.
+
+    When the action is completed, it transmits True on the "start_trace_seven" topic, which
+    lets the trace_seven node start to do its work.
+*/
+
 namespace irobot_command{
 
 class iRobotUndockClient : public rclcpp::Node

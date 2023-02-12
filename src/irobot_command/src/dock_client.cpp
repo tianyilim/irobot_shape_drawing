@@ -14,6 +14,15 @@
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2/LinearMath/Matrix3x3.h"
 
+/*  DockClient navigates the robot back to a pose where it can "see" the dock using the
+    in-built NavToPos action. It then calls the DockServo action.
+
+    To know when to begin moving, the node listens to the "start_dock" topic.
+    The TraceS node will send True on this topic when it is done drawing an S.
+
+    When the actions are completed, the robot is done with its task.
+*/
+
 namespace irobot_command{
 
 class DockClient : public rclcpp::Node

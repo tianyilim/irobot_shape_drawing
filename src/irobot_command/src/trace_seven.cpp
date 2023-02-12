@@ -13,6 +13,20 @@
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2/LinearMath/Matrix3x3.h"
 
+/*  TraceSeven traces out the number 7 on the ground. The motion of the robot is controlled
+    using the included "NavToPos" actions.
+
+    To know when to begin moving, the node listens to the "start_trace_seven" topic.
+    The UndockClient node will send True on this topic when it is done calling the Undock action.
+
+    When the 7 is being drawn, it also transmits True on the "viz_on" topic, which lets the
+    path_viz node know to trace out the pose of the robot in RViz. When it is done, it will
+    transmit False.
+
+    When the actions are completed, it transmits True on the "start_trace_s" topic, which
+    lets the TraceS node start to do its work.
+*/
+
 namespace irobot_command{
 
 class TraceSevenClient : public rclcpp::Node

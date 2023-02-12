@@ -14,6 +14,21 @@
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2/LinearMath/Matrix3x3.h"
 
+/*  TraceS traces out a capital S on the ground. The motion of the robot is controlled by
+    by directly commanding the linear and angular velocities on the "cmd_vel" topic, using
+    a simple tracking controller.
+
+    To know when to begin moving, the node listens to the "start_trace_s" topic.
+    The TraceSeven node will send True on this topic when it is done drawing a 7.
+
+    When the S is being drawn, TraceS transmits True on the "viz_on" topic, which lets the
+    path_viz node know to trace out the pose of the robot in RViz. When it is done, it will
+    transmit False.
+
+    When the actions are completed, it transmits True on the "start_dock" topic, which
+    lets the DockClient node do its work.
+*/
+
 // Util functions (should be in a .h but these are quick)
 double get_diff_between_angles(double a1, double a2){
     /* Returns smallest a1-a2, assuming both in radians */

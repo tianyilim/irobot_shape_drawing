@@ -5,6 +5,12 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Bool
 from visualization_msgs.msg import Marker
 
+'''
+Simply draws Markers in RViz if the commanded state of "viz_on" is True.
+
+The markers are drawn in the position reported on the "odom" topic.
+'''
+
 class PathSubscriber(Node):
 
     def __init__(self):
