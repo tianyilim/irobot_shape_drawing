@@ -45,7 +45,7 @@ public:
 
     explicit TraceSClient(
         const rclcpp::NodeOptions &node_options=rclcpp::NodeOptions()
-    ) : Node("trace_seven_client", node_options)
+    ) : Node("trace_s_client", node_options)
     {
         // Action client needs the action type `NavToPos`, the ROS node to add the client to (this), and the action name `/NavToPos`
         this->client_ptr_ = rclcpp_action::create_client<NavToPos>(
@@ -68,13 +68,12 @@ public:
 
         this->viz_flag_pub_ = this->create_publisher<std_msgs::msg::Bool>("viz_on", 10);
         this->cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
+        this->dock_pub_ = this->create_publisher<std_msgs::msg::Bool>("start_dock", 10);
 
         // Declare parameters
-        // ! This is set in the Launch file as well.
         this->declare_parameter<double>("WAYPOINT_TOL");
         this->declare_parameter<double>("V_K");
         this->declare_parameter<double>("V_MAX");
-        this->declare_parameter<double>("W_K");
         this->declare_parameter<double>("W_MAX");
     }
 
@@ -89,16 +88,15 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr viz_flag_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr trace_seven_end_pub_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr dock_pub_;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
 
     bool start_flag_;
     bool goal_done_;
     size_t coord_idx_;
     // Hard-coded waypoints to get the robot to trace out an S
-    // std::vector<double> x_coords{-1.25, -1.323, -1.35, -1.35, -1.35, -1.35, -1.35, -1.323, -1.25, -1.15, -1.05, -0.95,  -0.877, -0.85, -0.85, -0.85, -0.85, -0.85, -0.823, -0.75, -0.65, -0.55, -0.45, -0.377, -0.35, -0.35, -0.35, -0.35, -0.35, -0.377, -0.45, -0.55};
-    // std::vector<double> y_coords{ 0.973, 0.9,    0.8,   0.7,   0.6,   0.5,   0.4,   0.3,    0.227, 0.2,   0.2,   0.227,  0.3,    0.4,   0.5,   0.6,   0.7,   0.8,   0.9,    0.973, 1.0,   1.0,   0.973, 0.9,    0.8,   0.7,   0.6,   0.5,   0.4,   0.3,    0.227, 0.2};
-    std::vector<double> x_coords{-1.25, -1.323, -1.35, -1.35, -1.323, -1.25, -1.15, -1.05, -0.95,  -0.877, -0.85, -0.85, -0.823, -0.75, -0.65, -0.55, -0.45, -0.377, -0.35, -0.35, -0.377, -0.45, -0.55};
-    std::vector<double> y_coords{ 0.973, 0.9,    0.8,   0.4,   0.3,    0.227, 0.2,   0.2,   0.227,  0.3,    0.4,   0.8,   0.9,    0.973, 1.0,   1.0,   0.973, 0.9,    0.8,   0.4,   0.3,    0.227, 0.2};
+    const std::vector<double> x_coords{-1.25, -1.323, -1.35, -1.35, -1.323, -1.25, -1.15, -1.05, -0.95,  -0.877, -0.85, -0.85, -0.823, -0.75, -0.65, -0.55, -0.45, -0.377, -0.35, -0.35, -0.377, -0.45, -0.55};
+    const std::vector<double> y_coords{ 0.973, 0.9,    0.8,   0.4,   0.3,    0.227, 0.2,   0.2,   0.227,  0.3,    0.4,   0.8,   0.9,    0.973, 1.0,   1.0,   0.973, 0.9,    0.8,   0.4,   0.3,    0.227, 0.2};
     const size_t START_VIZ_IDX = 0;             // Waypoint index to start visualization
     const size_t END_VIZ_IDX = x_coords.size(); // Waypoint index to end visualization
 
@@ -119,7 +117,6 @@ private:
         // Get parameter values
         double V_K = this->get_parameter("V_K").get_parameter_value().get<double>();
         double V_MAX = this->get_parameter("V_MAX").get_parameter_value().get<double>();
-        double W_K = this->get_parameter("W_K").get_parameter_value().get<double>();
         double W_MAX = this->get_parameter("W_MAX").get_parameter_value().get<double>();
         double WAYPOINT_TOL = this->get_parameter("WAYPOINT_TOL").get_parameter_value().get<double>();
 
@@ -141,15 +138,22 @@ private:
         // RCLCPP_INFO(this->get_logger(), "ctheta: %0.2fdeg, gtheta: %0.2fdeg, d_theta: %0.2fdeg",
         //     (ctheta*180.0/M_PI), (gtheta*180.0/M_PI), (d_theta*180.0/M_PI));
 
-        // double V = std::min(V_MAX, V_K/(d_theta*d_theta));
-        double V = std::max(0.0, -V_K*abs(d_theta)+V_MAX);      // Linear relation with lin velocity and angle err
-        double W = std::max(std::min(W_MAX, W_K*d_theta), -W_MAX);  // Clamp between +- steering angle
+        double V = std::max(0.0, -V_K*abs(d_theta)+V_MAX);      // Linear relation with lin velocity and angle 
+        // try using SIN instead of linear (smoother function)
+        double W;
+        if (d_theta > M_PI_2) {
+            W = W_MAX;
+        } else if (d_theta < -M_PI_2) {
+            W = -W_MAX;
+        } else {
+            W = sin(d_theta);
+        }
 
         geometry_msgs::msg::Twist cmd;
         cmd.linear.x = V;
         cmd.angular.z = W;
 
-        // If we are close enough to the goal skip to the next one
+        // If we are close enough to the target, go to the next one
         if (sqrt(dx*dx+dy*dy) < WAYPOINT_TOL) {
             RCLCPP_INFO(this->get_logger(), "gxy: (%0.2f, %0.2f), cxy: (%0.2f, %0.2f), dx: %0.2f, dy: %0.2f, distance to waypoint: %0.2f",
                 gx, gy, msg.pose.pose.position.x, msg.pose.pose.position.y, dx, dy, sqrt(dx*dx+dy*dy)
@@ -164,9 +168,11 @@ private:
                 goal_done_ = true;
                 cmd.linear.x = 0.0;
                 cmd.linear.z = 0.0;
-                std_msgs::msg::Bool msg_false;
-                msg_false.data = false;
-                viz_flag_pub_->publish(msg_false);
+                std_msgs::msg::Bool msg_tx;
+                msg_tx.data = false;
+                viz_flag_pub_->publish(msg_tx);
+                msg_tx.data = true;
+                dock_pub_->publish(msg_tx);     // just use the same obj for convenience
             }
         }
 
