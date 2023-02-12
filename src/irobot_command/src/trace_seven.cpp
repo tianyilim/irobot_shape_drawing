@@ -47,10 +47,10 @@ public:
         return this->goal_done_;
     }
 
-    void send_goal(const std_msgs::msg::Bool & _)
+    void send_goal(const std_msgs::msg::Bool & start_msg)
     {
         using namespace std::placeholders;  // for defining callbacks later
-        _;      // So we don't have warning for unused argument
+        if (!start_msg.data) return;
 
         // Wait for action client to start up
         if (!this->client_ptr_)
@@ -157,6 +157,7 @@ private:
     {
         switch (result.code) {
         case rclcpp_action::ResultCode::SUCCEEDED:
+        {
             this->coord_idx_++;
             // We know we are done when we have reached the last element in the coordinates
             std_msgs::msg::Bool msg;    // Dummy data to chuck into a message
@@ -168,15 +169,22 @@ private:
                 this->send_goal(msg);
             }
             break;
+        }
         case rclcpp_action::ResultCode::ABORTED:
+        {
             RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
             return;
+        }
         case rclcpp_action::ResultCode::CANCELED:
+        {
             RCLCPP_ERROR(this->get_logger(), "Goal was canceled");
             return;
+        }
         default:
+        {
             RCLCPP_ERROR(this->get_logger(), "Unknown result code");
             return;
+        }
         }
 
         // Get euler angle from result callback
