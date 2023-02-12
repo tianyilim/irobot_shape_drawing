@@ -8,10 +8,32 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "irobot_create_msgs/action/navigate_to_position.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/twist.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 #include "std_msgs/msg/bool.hpp"
-#include "std_msgs/msg/float32.hpp"
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2/LinearMath/Matrix3x3.h"
+
+// Util functions (should be in a .h but these are quick)
+double get_diff_between_angles(double a1, double a2){
+    /* Returns smallest a1-a2, assuming both in radians */
+    double a = a1-a2;
+    if (a > M_PI){
+        a -= M_PI*2;
+    } else if (a < -M_PI) {
+        a += M_PI*2;
+    }
+    return a;
+}
+
+double get_yaw_from_quat(double x, double y, double z, double w){
+    tf2::Quaternion q(x, y, z, w);
+    tf2::Matrix3x3 m(q);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+
+    return yaw;
+}
 
 namespace irobot_command{
 
@@ -31,15 +53,28 @@ public:
         );
 
         this->start_sub_ = this->create_subscription<std_msgs::msg::Bool>(
-            "start_trace_seven", 10,
-            std::bind(&TraceSClient::send_goal, this, std::placeholders::_1)
+            "start_trace_s", 10,
+            std::bind(&TraceSClient::get_start, this, std::placeholders::_1)
         );
 
-        this->coord_idx_ = 0;   // Which coordinate in the "7" to move to
+        this->odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+            "odom", 10,
+            std::bind(&TraceSClient::get_odom, this, std::placeholders::_1)
+        );
+
+        this->coord_idx_ = 0;   // Which coordinate in the "S" to move to
         this->goal_done_ = false;
+        this->start_flag_ = false;
 
         this->viz_flag_pub_ = this->create_publisher<std_msgs::msg::Bool>("viz_on", 10);
-        this->trace_seven_end_pub_ = this->create_publisher<std_msgs::msg::Bool>("start_trace_s", 10);
+        this->cmd_vel_pub_ = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel", 10);
+
+        // Declare parameters
+        // ! This is set in the Launch file as well.
+        this->declare_parameter("WAYPOINT_TOL", 0.05);
+        this->declare_parameter("V_K", 0.1);
+        this->declare_parameter("V_MAX", 1.5);
+        this->declare_parameter("W_MAX", M_PI_2);
     }
 
     bool is_goal_done()
@@ -47,154 +82,91 @@ public:
         return this->goal_done_;
     }
 
-    void send_goal(const std_msgs::msg::Bool & _)
-    {
-        using namespace std::placeholders;  // for defining callbacks later
-        _;      // So we don't have warning for unused argument
-
-        // Wait for action client to start up
-        if (!this->client_ptr_)
-        {
-            RCLCPP_ERROR(this->get_logger(), "Action client not initialized");
-        }
-
-        // Error! Action server might have crashed.
-        if (!this->client_ptr_->wait_for_action_server(std::chrono::seconds(10)))
-        {
-            RCLCPP_ERROR(this->get_logger(), "Action server not available after waiting");
-            this->goal_done_ = true;
-            return;
-        }
-
-        // Start/stop leaving breadcrumbs
-        std_msgs::msg::Bool msg;
-        if (this->coord_idx_ == this->START_VIZ_IDX){
-            RCLCPP_INFO(this->get_logger(), "Set viz ON");
-            msg.data = true;
-            this->viz_flag_pub_->publish(msg);
-        }
-        if (this->coord_idx_ == this->END_VIZ_IDX){
-            RCLCPP_INFO(this->get_logger(), "Set viz OFF");
-            msg.data = false;
-            this->viz_flag_pub_->publish(msg);
-        }
-
-        auto goal_msg = NavToPos::Goal();
-        // goal_msg.goal_pose.header.stamp;
-        // goal_msg.goal_pose.header.frame_id = "";
-        goal_msg.achieve_goal_heading = true;
-        goal_msg.goal_pose.pose.position.x = this->x_coords[this->coord_idx_];
-        goal_msg.goal_pose.pose.position.y = this->y_coords[this->coord_idx_];
-        // Init quaternion
-        tf2::Quaternion q;
-        q.setRPY(0.0, 0.0, 
-            this->t_coords[this->coord_idx_]*M_PI/180.0
-        );
-        goal_msg.goal_pose.pose.orientation.w = q.getW();
-        goal_msg.goal_pose.pose.orientation.x = q.getX();
-        goal_msg.goal_pose.pose.orientation.y = q.getY();
-        goal_msg.goal_pose.pose.orientation.z = q.getZ();
-
-        RCLCPP_INFO(this->get_logger(), "Sending goal");
-
-        auto send_goal_options = rclcpp_action::Client<NavToPos>::SendGoalOptions();
-        send_goal_options.goal_response_callback =
-            std::bind(&TraceSClient::goal_response_callback, this, _1);   // the placeholders refer to the function arguments in the callback
-        send_goal_options.feedback_callback =
-            std::bind(&TraceSClient::feedback_callback, this, _1, _2);
-        send_goal_options.result_callback =
-            std::bind(&TraceSClient::result_callback, this, _1);
-
-        // Send goal to the action server
-        auto goal_handle_future = this->client_ptr_->async_send_goal(goal_msg, send_goal_options);
-
-    }
-
 private:
     rclcpp_action::Client<NavToPos>::SharedPtr client_ptr_;
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr start_sub_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr viz_flag_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr trace_seven_end_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
 
+    bool start_flag_;
     bool goal_done_;
     size_t coord_idx_;
-    const size_t START_VIZ_IDX = 1;     // Waypoint index to start visualization
-    const size_t END_VIZ_IDX = 3;       // Waypoint index to end visualization
-    std::vector<float> x_coords{-1.35, -1.35, -0.35, -1.15};
-    std::vector<float> y_coords{-1.0, -0.2, -0.7, 1.0};
-    std::vector<float> t_coords{90.0, -22.565, 115.201, -180.0};
-    // Hard-coded waypoints to get the robot to go
+    // Hard-coded waypoints to get the robot to trace out an S
+    std::vector<double> x_coords{-1.25, -1.323, -1.35, -1.35, -1.35, -1.35, -1.35, -1.323, -1.25, -1.15, -1.05, -0.95,  -0.877, -0.85, -0.85, -0.85, -0.85, -0.85, -0.823, -0.75, -0.65, -0.55, -0.45, -0.377, -0.35, -0.35, -0.35, -0.35, -0.35, -0.377, -0.45, -0.55};
+    std::vector<double> y_coords{ 0.973, 0.9,    0.8,   0.7,   0.6,   0.5,   0.4,   0.3,    0.227, 0.2,   0.2,   0.227,  0.3,    0.4,   0.5,   0.6,   0.7,   0.8,   0.9,    0.973, 1.0,   1.0,   0.973, 0.9,    0.8,   0.7,   0.6,   0.5,   0.4,   0.3,    0.227, 0.2};
+    // std::vector<double> t_coords{90.0, -22.565, 115.201, -180.0};
+    const size_t START_VIZ_IDX = 0;             // Waypoint index to start visualization
+    const size_t END_VIZ_IDX = x_coords.size(); // Waypoint index to end visualization
 
-    void goal_response_callback(GoalHandleNavToPos::SharedPtr goal_handle)
-    {
-        if (!goal_handle) {
-            RCLCPP_ERROR(this->get_logger(), "Goal was rejected by server");
-        } else {
-            RCLCPP_INFO(this->get_logger(), "Goal accepted by server, waiting for result");
+    // Respond to the start flag for us to start moving
+    void get_start(const std_msgs::msg::Bool &msg){
+        if (msg.data) {
+            start_flag_ = true;
+            std_msgs::msg::Bool msg_true;
+            msg_true.data = true;
+            this->viz_flag_pub_->publish(msg_true);     // Start tracing breadcrumbs
         }
     }
 
-    void feedback_callback(
-        GoalHandleNavToPos::SharedPtr,
-        const std::shared_ptr<const NavToPos::Feedback> feedback)
-    {
-        std::ostringstream status;
-        if (feedback->navigate_state == 2) {
-            status << feedback->remaining_travel_distance << "m";
-        } else {
-            status << feedback->remaining_angle_travel << "rad";
-        }
+    // In response to odometry messages, publish new things onto cmd_vel
+    void get_odom(const nav_msgs::msg::Odometry &msg){
+        if (!start_flag_) return;   // Only start when we are cleared to do so
 
-        RCLCPP_INFO(
-            this->get_logger(),
-            "Nav state: %d, %s",
-            feedback->navigate_state,
-            status.str().c_str()
+        double gx = x_coords[coord_idx_];
+        double gy = y_coords[coord_idx_];    // goal x and goal_y
+        double cx = msg.pose.pose.position.x;
+        double cy = msg.pose.pose.position.y;
+        double dx = gx-cx;
+        double dy = gy-cy;
+        double gtheta = atan2( dy, dx );
+
+        double ctheta = get_yaw_from_quat(
+            msg.pose.pose.orientation.x,
+            msg.pose.pose.orientation.y,
+            msg.pose.pose.orientation.z,
+            msg.pose.pose.orientation.w
         );
-    }
 
-    void result_callback(const GoalHandleNavToPos::WrappedResult & result)
-    {
-        switch (result.code) {
-        case rclcpp_action::ResultCode::SUCCEEDED:
-            this->coord_idx_++;
-            // We know we are done when we have reached the last element in the coordinates
-            std_msgs::msg::Bool msg;    // Dummy data to chuck into a message
-            msg.data = true;
-            if (this->coord_idx_ == this->x_coords.size()) {
-                this->goal_done_ = true;
-                this->trace_seven_end_pub_->publish(msg);
-            } else {
-                this->send_goal(msg);
+        // Add numerical epsilon
+        double d_theta = get_diff_between_angles(gtheta, ctheta) + 1e-6;
+        // RCLCPP_INFO(this->get_logger(), "ctheta: %0.2fdeg, gtheta: %0.2fdeg, d_theta: %0.2fdeg",
+        //     (ctheta*180.0/M_PI), (gtheta*180.0/M_PI), (d_theta*180.0/M_PI));
+
+        double V_K = this->get_parameter("V_K").get_parameter_value().get<double>();
+        double V_MAX = this->get_parameter("V_MAX").get_parameter_value().get<double>();
+        double W_MAX = this->get_parameter("W_MAX").get_parameter_value().get<double>();
+        double WAYPOINT_TOL = this->get_parameter("WAYPOINT_TOL").get_parameter_value().get<double>();
+
+        // double V = std::min(V_MAX, V_K/(d_theta*d_theta));
+        double V = std::max(0.0, -V_K*abs(d_theta)+V_MAX);
+        double W = std::max(std::min(W_MAX, d_theta), -W_MAX);  // Clamp
+
+        geometry_msgs::msg::Twist cmd;
+        cmd.linear.x = V;
+        cmd.angular.z = W;
+
+        // If we are close enough to the goal skip to the next one
+        if (sqrt(dx*dx+dy*dy) < WAYPOINT_TOL) {
+            coord_idx_ ++;
+            RCLCPP_INFO(this->get_logger(), "Next waypoint idx: %ld", coord_idx_);
+            if (coord_idx_ == x_coords.size()){
+                // We have reached the goal and can stop
+                RCLCPP_INFO(this->get_logger(), "Reached last waypoint. Done.");
+
+                goal_done_ = true;
+                cmd.linear.x = 0.0;
+                cmd.linear.z = 0.0;
+                std_msgs::msg::Bool msg_false;
+                msg_false.data = false;
+                viz_flag_pub_->publish(msg_false);
             }
-            break;
-        case rclcpp_action::ResultCode::ABORTED:
-            RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
-            return;
-        case rclcpp_action::ResultCode::CANCELED:
-            RCLCPP_ERROR(this->get_logger(), "Goal was canceled");
-            return;
-        default:
-            RCLCPP_ERROR(this->get_logger(), "Unknown result code");
-            return;
         }
 
-        // Get euler angle from result callback
-        tf2::Quaternion q(
-            result.result->pose.pose.orientation.x,
-            result.result->pose.pose.orientation.y,
-            result.result->pose.pose.orientation.z,
-            result.result->pose.pose.orientation.w);
-        tf2::Matrix3x3 m(q);
-        double roll, pitch, yaw;
-        m.getRPY(roll, pitch, yaw);
-
-        RCLCPP_INFO(this->get_logger(), "Result received: x:%0.2f, y:%0.2f, th:%0.2f",
-            result.result->pose.pose.position.x,
-            result.result->pose.pose.position.y,
-            yaw);
+        // Publish command velocity
+        this->cmd_vel_pub_->publish(cmd);
     }
-
 };  // class TraceSClient
 
 }

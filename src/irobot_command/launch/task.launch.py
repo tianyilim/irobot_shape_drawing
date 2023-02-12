@@ -5,6 +5,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
 
 import os
+from numpy import pi
 
 def generate_launch_description():
     return LaunchDescription([
@@ -36,6 +37,14 @@ def generate_launch_description():
             package='irobot_command',
             namespace='',
             executable='trace_s',
-            name='trace_s'
+            name='trace_s',
+            parameters=[
+                {
+                    "WAYPOINT_TOL": 0.05,
+                    "V_K": 1.5,
+                    "V_MAX": 1.5,
+                    "W_MAX": pi/2,
+                }
+            ]
         ),
     ])
