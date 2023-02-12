@@ -120,9 +120,9 @@ private:
     size_t coord_idx_;
     const size_t START_VIZ_IDX = 1;     // Waypoint index to start visualization
     const size_t END_VIZ_IDX = 3;       // Waypoint index to end visualization
-    std::vector<float> x_coords{-1.35, -1.35, -0.35, -1.15};
-    std::vector<float> y_coords{-1.0, -0.2, -0.7, 1.0};
-    std::vector<float> t_coords{90.0, -22.565, 115.201, -180.0};
+    const std::vector<float> x_coords{-1.35, -1.35, -0.35, -1.15};
+    const std::vector<float> y_coords{-1.0, -0.2, -0.7, 1.0};
+    const std::vector<float> t_coords{90.0, -22.565, 115.201, -180.0};
     // Hard-coded waypoints to get the robot to go
 
     void goal_response_callback(GoalHandleNavToPos::SharedPtr goal_handle)
