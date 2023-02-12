@@ -71,10 +71,11 @@ public:
 
         // Declare parameters
         // ! This is set in the Launch file as well.
-        this->declare_parameter("WAYPOINT_TOL", 0.05);
-        this->declare_parameter("V_K", 0.1);
-        this->declare_parameter("V_MAX", 1.5);
-        this->declare_parameter("W_MAX", M_PI_2);
+        this->declare_parameter<double>("WAYPOINT_TOL");
+        this->declare_parameter<double>("V_K");
+        this->declare_parameter<double>("V_MAX");
+        this->declare_parameter<double>("W_K");
+        this->declare_parameter<double>("W_MAX");
     }
 
     bool is_goal_done()
@@ -115,12 +116,17 @@ private:
     void get_odom(const nav_msgs::msg::Odometry &msg){
         if (!start_flag_) return;   // Only start when we are cleared to do so
 
+        // Get parameter values
+        double V_K = this->get_parameter("V_K").get_parameter_value().get<double>();
+        double V_MAX = this->get_parameter("V_MAX").get_parameter_value().get<double>();
+        double W_K = this->get_parameter("W_K").get_parameter_value().get<double>();
+        double W_MAX = this->get_parameter("W_MAX").get_parameter_value().get<double>();
+        double WAYPOINT_TOL = this->get_parameter("WAYPOINT_TOL").get_parameter_value().get<double>();
+
         double gx = x_coords[coord_idx_];
         double gy = y_coords[coord_idx_];    // goal x and goal_y
-        double cx = msg.pose.pose.position.x;
-        double cy = msg.pose.pose.position.y;
-        double dx = gx-cx;
-        double dy = gy-cy;
+        double dx = gx-msg.pose.pose.position.x;
+        double dy = gy-msg.pose.pose.position.y;
         double gtheta = atan2( dy, dx );
 
         double ctheta = get_yaw_from_quat(
@@ -130,19 +136,14 @@ private:
             msg.pose.pose.orientation.w
         );
 
-        // Add numerical epsilon
+        // Add numerical epsilon to avoid div by 0
         double d_theta = get_diff_between_angles(gtheta, ctheta) + 1e-6;
         // RCLCPP_INFO(this->get_logger(), "ctheta: %0.2fdeg, gtheta: %0.2fdeg, d_theta: %0.2fdeg",
         //     (ctheta*180.0/M_PI), (gtheta*180.0/M_PI), (d_theta*180.0/M_PI));
 
-        double V_K = this->get_parameter("V_K").get_parameter_value().get<double>();
-        double V_MAX = this->get_parameter("V_MAX").get_parameter_value().get<double>();
-        double W_MAX = this->get_parameter("W_MAX").get_parameter_value().get<double>();
-        double WAYPOINT_TOL = this->get_parameter("WAYPOINT_TOL").get_parameter_value().get<double>();
-
         // double V = std::min(V_MAX, V_K/(d_theta*d_theta));
-        double V = std::max(0.0, -V_K*abs(d_theta)+V_MAX);
-        double W = std::max(std::min(W_MAX, d_theta), -W_MAX);  // Clamp
+        double V = std::max(0.0, -V_K*abs(d_theta)+V_MAX);      // Linear relation with lin velocity and angle err
+        double W = std::max(std::min(W_MAX, W_K*d_theta), -W_MAX);  // Clamp between +- steering angle
 
         geometry_msgs::msg::Twist cmd;
         cmd.linear.x = V;
@@ -150,7 +151,11 @@ private:
 
         // If we are close enough to the goal skip to the next one
         if (sqrt(dx*dx+dy*dy) < WAYPOINT_TOL) {
-            coord_idx_ ++;
+            RCLCPP_INFO(this->get_logger(), "gxy: (%0.2f, %0.2f), cxy: (%0.2f, %0.2f), dx: %0.2f, dy: %0.2f, distance to waypoint: %0.2f",
+                gx, gy, msg.pose.pose.position.x, msg.pose.pose.position.y, dx, dy, sqrt(dx*dx+dy*dy)
+            );
+
+            coord_idx_++;
             RCLCPP_INFO(this->get_logger(), "Next waypoint idx: %ld", coord_idx_);
             if (coord_idx_ == x_coords.size()){
                 // We have reached the goal and can stop
