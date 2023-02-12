@@ -19,19 +19,29 @@ def generate_launch_description():
             package='irobot_command',
             namespace='',
             executable='undock_client',
-            name='undock_client'
+            name='undock_client',
+            parameters=[{'use_sim_time':True}]
+        ),
+        Node(
+            package='irobot_command',
+            namespace='',
+            executable='dock_client',
+            name='dock_client',
+            parameters=[{'use_sim_time':True}]
         ),
         Node(
             package='irobot_command',
             namespace='',
             executable='trace_seven',
-            name='trace_seven'
+            name='trace_seven',
+            parameters=[{'use_sim_time':True}]
         ),
         Node(
             package='path_viz',
             namespace='',
             executable='path_viz',
-            name='path_viz'
+            name='path_viz',
+            parameters=[{'use_sim_time':True}]
         ),
         Node(
             package='irobot_command',
@@ -40,9 +50,11 @@ def generate_launch_description():
             name='trace_s',
             parameters=[
                 {
-                    "WAYPOINT_TOL": 0.05,
-                    "V_K": 1.5,
-                    "V_MAX": 1.5,
+                    "use_sim_time": True,
+                    "WAYPOINT_TOL": 0.02,
+                    "V_K": 0.8,
+                    "V_MAX": 0.5,
+                    "W_K": 0.5,
                     "W_MAX": pi/2,
                 }
             ]

@@ -57,7 +57,7 @@ public:
 
         auto goal_msg = Undock::Goal();     // This Action has no content.
 
-        RCLCPP_INFO(this->get_logger(), "Sending goal");
+        RCLCPP_INFO(this->get_logger(), "Sending Undock goal");
 
         auto send_goal_options = rclcpp_action::Client<Undock>::SendGoalOptions();
         send_goal_options.goal_response_callback =
